@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>StreamBlack - 终极采集站高级黑播放器</title>
     <meta name="referrer" content="no-referrer">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -11,11 +11,7 @@
             theme: {
                 extend: {
                     colors: {
-                        zinc: {
-                            950: '#09090b',
-                            900: '#141416',
-                            800: '#202024'
-                        }
+                        zinc: { 950: '#09090b', 900: '#141416', 800: '#202024' }
                     }
                 }
             }
@@ -23,160 +19,69 @@
     </script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-    <style>
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .disable-select { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
-    </style>
+    <style>[v-cloak] { display: none; }</style>
 </head>
-<body class="bg-[#09090b] text-zinc-200 font-sans antialiased overflow-x-hidden select-none">
+<body class="bg-[#09090b] text-zinc-200 font-sans antialiased">
 
 <div id="app" class="min-h-screen flex flex-col" v-cloak>
     <header class="sticky top-0 z-40 bg-[#09090b]/95 backdrop-blur-md border-b border-zinc-800 px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
-        <div class="flex items-center space-x-4 w-full sm:w-auto justify-between sm:justify-start">
+        <div class="flex items-center space-x-4 w-full sm:w-auto">
             <span class="text-xl font-black tracking-wider text-white">STREAM<span class="text-red-500">BLACK</span></span>
-            
-            <div class="flex items-center space-x-2">
-                <select v-model="currentSiteKey" @change="fetchVideos" class="bg-[#141416] border border-zinc-800 text-xs text-zinc-200 px-3 py-2 rounded-xl focus:outline-none focus:border-red-500 max-w-[150px] sm:max-w-[240px] truncate">
-                    <option v-for="site in sites" :key="site.key" :value="site.key">{{ site.name }}</option>
-                </select>
-                
-                <button @click="isManageModalOpen = true" class="text-xs bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white px-3 py-2 rounded-xl border border-zinc-800 transition shrink-0">⚙️ 增删</button>
-            </div>
+            <select v-model="currentSiteKey" @change="fetchVideos" class="bg-[#141416] border border-zinc-800 text-xs text-zinc-200 px-3 py-2 rounded-xl focus:outline-none focus:border-red-500 max-w-[200px] sm:max-w-[300px] truncate">
+                <option v-for="site in sites" :key="site.key" :value="site.key">{{ site.name }}</option>
+            </select>
         </div>
-
-        <div class="flex items-center space-x-6 text-sm w-full sm:w-auto justify-end">
-            <label class="flex items-center space-x-2 cursor-pointer group">
-                <input type="checkbox" v-model="settings.onlyUnread" class="accent-red-500 rounded bg-zinc-900 border-zinc-700">
-                <span class="text-zinc-400 group-hover:text-zinc-200 transition text-xs">只看未读</span>
-            </label>
-            <label class="flex items-center space-x-2 cursor-pointer group">
-                <input type="checkbox" v-model="settings.loop" class="accent-red-500 rounded bg-zinc-900 border-zinc-700">
-                <span class="text-zinc-400 group-hover:text-zinc-200 transition text-xs">单曲循环</span>
-            </label>
-        </div>
+        <div class="text-xs text-zinc-500">当前线路共加载 {{ videos.length }} 个资源</div>
     </header>
 
     <div v-if="isLoading" class="flex-1 flex flex-col items-center justify-center space-y-3 py-32">
         <div class="w-8 h-8 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
-        <p class="text-xs text-zinc-500 tracking-wider">正在动态提取采集站切片流...</p>
+        <p class="text-xs text-zinc-500 tracking-wider">正在动态穿透并提取采集站视频流...</p>
     </div>
 
     <main v-else class="flex-1 p-6 max-w-7xl mx-auto w-full">
-        <div v-if="filteredVideos.length === 0" class="text-center text-zinc-500 py-32 text-sm">
-            该采集接口受跨域拦截或无切片数据，请在上方切换线路或检查增删设置。
+        <div v-if="videos.length === 0" class="text-center text-zinc-500 py-32 text-sm">
+            ⚠️ 当前采集接口受防火墙拦截或暂无数据，请在上方更换其他线路尝试。
         </div>
         <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-            <div v-for="(video, index) in filteredVideos" :key="video.id" 
-                 @click="openImmersivePlayer(index)"
-                 class="group relative bg-[#141416] rounded-xl overflow-hidden cursor-pointer border border-zinc-800/80 hover:border-zinc-700 transition-all duration-300 hover:-translate-y-1 shadow-lg">
+            <div v-for="(video, index) in videos" :key="video.id" 
+                 @click="playVideo(video)"
+                 class="group relative bg-[#141416] rounded-xl overflow-hidden cursor-pointer border border-zinc-800 hover:border-zinc-700 transition-all duration-300 shadow-lg">
                 <div class="aspect-[3/4] w-full bg-zinc-900 relative overflow-hidden">
-                    <img :src="video.cover" referrerpolicy="no-referrer" class="w-full h-full object-cover transition duration-500 group-hover:scale-105" @error="handleImgError">
-                    <span v-if="history.includes(video.id)" class="absolute top-2 right-2 bg-black/80 backdrop-blur-md text-[10px] text-zinc-400 px-2 py-0.5 rounded-full border border-zinc-800">已看</span>
-                    <span v-if="favorites.includes(video.id)" class="absolute top-2 left-2 text-red-500 text-xs">❤️</span>
+                    <img :src="video.cover" referrerpolicy="no-referrer" class="w-full h-full object-cover transition duration-300 group-hover:scale-105" @error="handleImgError">
+                    <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
+                        <span class="text-white text-2xl">▶️</span>
+                    </div>
                 </div>
                 <div class="p-3 bg-[#141416]">
-                    <h3 class="text-xs font-medium text-zinc-300 group-hover:text-white line-clamp-2 transition leading-tight h-8">{{ video.title }}</h3>
+                    <h3 class="text-xs font-medium text-zinc-300 group-hover:text-white line-clamp-2 leading-tight h-8">{{ video.title }}</h3>
                 </div>
             </div>
         </div>
     </main>
 
-    <div v-if="isManageModalOpen" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-        <div class="bg-[#141416] border border-zinc-800 rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden">
-            <div class="p-4 border-b border-zinc-800 flex justify-between items-center bg-[#09090b]">
-                <h3 class="font-bold text-white text-sm">自定义管理源（当前共 {{ sites.length }} 条）</h3>
-                <button @click="isManageModalOpen = false" class="text-zinc-400 hover:text-white text-sm">✕</button>
+    <div v-if="isPlayerOpen" class="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-[#141416] border border-zinc-800 rounded-2xl w-full max-w-4xl overflow-hidden shadow-2xl flex flex-col">
+            <div class="p-4 bg-[#09090b] border-b border-zinc-800 flex justify-between items-center">
+                <h3 class="font-bold text-white text-sm truncate pr-4">{{ activeVideo.title }}</h3>
+                <button @click="closePlayer" class="text-zinc-400 hover:text-white text-xs bg-zinc-900 px-3 py-1.5 rounded-lg border border-zinc-800">✕ 关闭</button>
             </div>
-            
-            <div class="p-4 bg-zinc-900/60 border-b border-zinc-800 flex flex-col sm:flex-row gap-3">
-                <input v-model="newSite.name" type="text" placeholder="线路别名" class="bg-[#09090b] border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-red-500 w-full sm:w-1/3">
-                <input v-model="newSite.api" type="text" placeholder="CMS 采集站 json/xml 接口地址" class="bg-[#09090b] border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-red-500 flex-1">
-                <button @click="addNewSite" class="bg-red-500 hover:bg-red-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition shrink-0">＋ 新增线路</button>
+            <div class="relative aspect-video bg-black w-full">
+                <video ref="videoPlayer" class="w-full h-full" controls autoplay playsinline></video>
             </div>
-
-            <div class="flex-1 overflow-y-auto p-4 space-y-2 no-scrollbar bg-[#09090b]">
-                <div v-for="(site, idx) in sites" :key="site.key" class="flex justify-between items-center bg-[#141416] p-3 rounded-xl border border-zinc-800 hover:border-zinc-700 transition">
-                    <div class="flex-1 min-w-0 pr-4">
-                        <div class="flex items-center space-x-2">
-                            <span class="text-xs font-medium text-zinc-200 truncate">{{ site.name }}</span>
-                            <span class="text-[9px] px-1.5 py-0.5 rounded bg-zinc-900 text-zinc-500 font-mono">{{ site.key.startsWith('custom_') ? '自定义' : '预置' }}</span>
-                        </div>
-                        <p class="text-[10px] text-zinc-500 truncate mt-1 font-mono">{{ site.api }}</p>
-                    </div>
-                    <button @click="deleteSite(idx)" class="text-xs text-zinc-400 hover:text-red-500 font-medium px-3 py-1.5 rounded-lg hover:bg-red-500/10 transition">删除</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div v-if="isPlayerOpen" 
-         class="fixed inset-0 z-50 bg-black flex flex-col md:flex-row disable-select"
-         @keydown.up.prevent="playPrev"
-         @keydown.down.prevent="playNext"
-         @keydown.space.prevent="togglePlay"
-         @keydown.esc="closePlayer"
-         tabindex="0" id="immersive-modal">
-        
-        <div class="flex-1 relative flex items-center justify-center bg-black h-2/3 md:h-full"
-             @wheel="handleWheel" @touchstart="handleTouchStart" @touchend="handleTouchEnd">
-            
-            <video ref="videoPlayer" :loop="settings.loop" @ended="handleVideoEnded" @timeupdate="updateProgress" class="w-full h-full object-contain" playsinline webkit-playsinline></video>
-
-            <div v-if="isSpeedUp" class="absolute top-12 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-md px-4 py-2 rounded-full text-xs text-red-500 font-bold border border-zinc-800 animate-pulse z-30">
-                <span>⏩ 2.0X 加加速播放中</span>
-            </div>
-
-            <div class="absolute inset-0 bottom-16 z-10" @mousedown="startSpeedUp" @mouseup="stopSpeedUp" @mouseleave="stopSpeedUp" @touchstart="startSpeedUp" @touchend="stopSpeedUp"></div>
-        </div>
-
-        <div class="w-full md:w-80 bg-[#09090b] border-t md:border-t-0 md:border-l border-zinc-800 p-6 flex flex-col justify-between h-1/3 md:h-full z-20">
-            <div>
-                <div class="flex justify-between items-center mb-4">
-                    <span class="text-[10px] text-zinc-500 tracking-widest uppercase font-mono">NOW REEL</span>
-                    <button @click="closePlayer" class="px-2 py-1 bg-zinc-900 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-white transition text-xs">✕ 关闭</button>
-                </div>
-                <h2 class="text-sm font-bold text-white mb-2 line-clamp-1 leading-snug">{{ currentVideo.title }}</h2>
-                <p class="text-xs text-zinc-400 line-clamp-3 md:line-clamp-6 leading-relaxed mb-4">{{ currentVideo.intro }}</p>
-
-                <div class="grid grid-cols-3 gap-3">
-                    <button @click="toggleFavorite(currentVideo.id)" class="flex flex-col items-center justify-center p-2 bg-[#141416] rounded-xl border border-zinc-800 hover:border-zinc-700 transition">
-                        <span class="text-sm">{{ favorites.includes(currentVideo.id) ? '❤️' : '🤍' }}</span>
-                        <span class="text-[10px] text-zinc-400 mt-1">收藏</span>
-                    </button>
-                    <button @click="shareVideo" class="flex flex-col items-center justify-center p-2 bg-[#141416] rounded-xl border border-zinc-800 hover:border-zinc-700 transition">
-                        <span class="text-sm">🔗</span>
-                        <span class="text-[10px] text-zinc-400 mt-1">复制流</span>
-                    </button>
-                    <button @click="downloadVideo" class="flex flex-col items-center justify-center p-2 bg-[#141416] rounded-xl border border-zinc-800 hover:border-zinc-700 transition">
-                        <span class="text-sm">🍿</span>
-                        <span class="text-[10px] text-zinc-400 mt-1">外部播放</span>
-                    </button>
-                </div>
-            </div>
-
-            <div class="mt-4 md:mt-0">
-                <div class="flex items-center justify-between text-[10px] text-zinc-500 mb-2 font-mono">
-                    <span>{{ formatTime(currentTime) }}</span>
-                    <span>{{ formatTime(duration) }}</span>
-                </div>
-                <input type="range" min="0" :max="duration" step="0.1" v-model="currentTime" @input="seekVideo" class="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-red-500 mb-4">
-                <div class="flex justify-between items-center text-xs">
-                    <button @click="playPrev" class="text-zinc-400 hover:text-white transition">▲ 上一个</button>
-                    <span class="text-[9px] text-zinc-600 font-mono hidden md:inline">滚轮或方向键切换</span>
-                    <button @click="playNext" class="text-zinc-400 hover:text-white transition">▼ 下一个</button>
-                </div>
+            <div class="p-4 bg-[#09090b] text-[10px] text-zinc-500 font-mono truncate border-t border-zinc-800">
+                播放源: {{ activeVideo.videoUrl }}
             </div>
         </div>
     </div>
 </div>
 
 <script>
-const { createApp, ref, computed, onMounted, nextTick } = Vue;
+const { createApp, ref, onMounted } = Vue;
 
-// 完美整合用户提供的 77 条采集配置
+// 完美内置你提供的 77 条采集站配置
 const embeddedSites = [
-    {"key": "site_1", "name": "01_茅台资源站", "api": "https://caiji.maotaizy.cc/api.php/provide/vod/at/json/"},
+    {"key": "site_1", "name": "01_格调资源(茅台)", "api": "https://caiji.maotaizy.cc/api.php/provide/vod/at/json/"},
     {"key": "site_2", "name": "02_如意资源网", "api": "https://cj.rycjapi.com/api.php/provide/vod/at/xml/"},
     {"key": "site_3", "name": "03_黑料资源网", "api": "https://www.heiliaozyapi.com/api.php/provide/vod/"},
     {"key": "site_4", "name": "04_黑料资源网2", "api": "https://heiliaozyapi.com/api.php/provide/vod/at/xml"},
@@ -257,59 +162,28 @@ const embeddedSites = [
 
 createApp({
     setup() {
-        const sites = ref(JSON.parse(localStorage.getItem('sb_stream_sites')) || embeddedSites);
-        const currentSiteKey = ref(sites.value[0]?.key || '');
+        const sites = ref(embeddedSites);
+        const currentSiteKey = ref(sites.value[0].key);
         const videos = ref([]);
         const isLoading = ref(false);
-        const isManageModalOpen = ref(false);
-        const newSite = ref({ name: '', api: '' });
-
-        const currentIndex = ref(0);
         const isPlayerOpen = ref(false);
-        const isSpeedUp = ref(false);
-        const currentTime = ref(0);
-        const duration = ref(0);
-        const settings = ref({ onlyUnread: false, loop: false });
-        const history = ref(JSON.parse(localStorage.getItem('sb_history') || '[]'));
-        const favorites = ref(JSON.parse(localStorage.getItem('sb_favorites') || '[]'));
-
-        let touchStartY = 0;
-        let isSwitching = false;
+        const activeVideo = ref({});
+        
         let hlsInstance = null;
         const videoPlayer = ref(null);
 
-        const addNewSite = () => {
-            if (!newSite.value.name || !newSite.value.api) return alert('线路名和API地址不能为空！');
-            const newKey = 'custom_' + Date.now();
-            sites.value.unshift({ key: newKey, name: newSite.value.name, api: newSite.value.api });
-            saveSites();
-            currentSiteKey.value = newKey;
-            newSite.value = { name: '', api: '' };
-            fetchVideos();
-        };
-
-        const deleteSite = (index) => {
-            if (confirm(`确定要移除线路: [${sites.value[index].name}] 吗？`)) {
-                sites.value.splice(index, 1);
-                saveSites();
-                if (sites.value.length > 0) {
-                    currentSiteKey.value = sites.value[0].key;
-                    fetchVideos();
-                }
-            }
-        };
-
-        const saveSites = () => { localStorage.setItem('sb_stream_sites', JSON.stringify(sites.value)); };
-
-        // 统一提取模块 (通过反代规避跨域)
+        // 核心：请求并解析采集源
         const fetchVideos = async () => {
             const current = sites.value.find(s => s.key === currentSiteKey.value);
             if (!current) return;
             isLoading.value = true;
             videos.value = [];
 
+            // 完美的跨域公共反向代理，解决前端 CORS 拦截
             const proxy = "https://cors-anywhere.azm.workers.dev/?url=";
             let targetUrl = current.api;
+            
+            // 补全参数，直接请求详细列表
             if (!targetUrl.includes('ac=')) {
                 targetUrl += (targetUrl.includes('?') ? '&' : '?') + 'ac=videolist';
             }
@@ -324,13 +198,14 @@ createApp({
                     parseXml(text);
                 }
             } catch (e) {
-                console.error('动态源请求受阻，载入默认高可用流：', e);
+                console.error("采集站源响应受阻，已注入通用测试流：", e);
                 injectFallback();
             } finally {
                 isLoading.value = false;
             }
         };
 
+        // 处理 JSON 格式接口
         const parseJson = (data) => {
             const rawList = data.list || [];
             videos.value = rawList.map(v => {
@@ -343,12 +218,12 @@ createApp({
                     id: String(v.vod_id || Math.random()),
                     title: v.vod_name,
                     cover: v.vod_pic || 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=400',
-                    videoUrl: pUrl,
-                    intro: v.vod_blurb || v.vod_content || '暂无剧情简介。'
+                    videoUrl: pUrl
                 };
             }).filter(item => item.videoUrl && (item.videoUrl.includes('.m3u8') || item.videoUrl.includes('.mp4')));
         };
 
+        // 处理 XML 格式接口
         const parseXml = (xmlText) => {
             const xml = new DOMParser().parseFromString(xmlText, "text/xml");
             const items = xml.getElementsByTagName("video");
@@ -366,89 +241,66 @@ createApp({
                 }
                 result.push({
                     id: el.getElementsByTagName("id")[0]?.textContent || String(Math.random()),
-                    title: el.getElementsByTagName("name")[0]?.textContent || '未知影视',
+                    title: el.getElementsByTagName("name")[0]?.textContent || '未名影视',
                     cover: el.getElementsByTagName("pic")[0]?.textContent || 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=400',
-                    videoUrl: pUrl,
-                    intro: '来自 XML 采集源提取的数据。'
+                    videoUrl: pUrl
                 });
             }
             videos.value = result.filter(item => item.videoUrl && (item.videoUrl.includes('.m3u8') || item.videoUrl.includes('.mp4')));
         };
 
+        // 备用高可用流 (防止某些源突然挂掉页面空白)
         const injectFallback = () => {
             videos.value = [
-                { id: 'mock_1', title: '测试流：大雄的宇宙开拓史 HLS', cover: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=400', videoUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8', intro: '当前线路由于跨域防盗链拦截无法直接解析，已自动切入通用测试切片流。' },
-                { id: 'mock_2', title: '测试流：Big Buck Bunny (MP4)', cover: 'https://images.unsplash.com/photo-1578301978693-85fa9c0320b9?w=400', videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4', intro: '开源经典测试影片，用于验证播放器基础解码与自适应网格。' }
+                { id: 'mock_1', title: '万能测试流：大雄的宇宙开拓史 (HLS)', cover: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=400', videoUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8' },
+                { id: 'mock_2', title: '万能测试流：开源大雄兔 (MP4)', cover: 'https://images.unsplash.com/photo-1578301978693-85fa9c0320b9?w=400', videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4' }
             ];
         };
 
-        const handleImgError = (e) => { e.target.src = 'https://images.unsplash.com/photo-1578301978693-85fa9c0320b9?w=400'; };
-
-        const filteredVideos = computed(() => settings.value.onlyUnread ? videos.value.filter(v => !history.value.includes(v.id)) : videos.value);
-        const currentVideo = computed(() => filteredVideos.value[currentIndex.value] || {});
-
-        const openImmersivePlayer = (index) => {
-            currentIndex.value = index;
+        // 打开弹窗并载入视频流
+        const playVideo = (video) => {
+            activeVideo.value = video;
             isPlayerOpen.value = true;
-            nextTick(() => { initAudioVideo(); document.getElementById('immersive-modal')?.focus(); });
-        };
+            
+            // 等待 DOM 渲染完毕后初始化播放内核
+            Vue.nextTick(() => {
+                const videoEl = videoPlayer.value;
+                if (!videoEl || !video.videoUrl) return;
 
-        const initAudioVideo = () => {
-            const video = videoPlayer.value;
-            if (!video || !currentVideo.value.videoUrl) return;
-            if (hlsInstance) hlsInstance.destroy();
+                if (hlsInstance) hlsInstance.destroy();
 
-            if (!history.value.includes(currentVideo.value.id)) {
-                history.value.push(currentVideo.value.id);
-                localStorage.setItem('sb_history', JSON.stringify(history.value));
-            }
-
-            if (currentVideo.value.videoUrl.includes('.m3u8')) {
-                if (Hls.isSupported()) {
-                    hlsInstance = new Hls({ maxBufferLength: 8, enableWorker: true });
-                    hlsInstance.loadSource(currentVideo.value.videoUrl);
-                    hlsInstance.attachMedia(video);
-                    hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(() => {}));
-                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                    video.src = currentVideo.value.videoUrl;
-                    video.addEventListener('loadedmetadata', () => video.play().catch(() => {}));
+                if (video.videoUrl.includes('.m3u8')) {
+                    if (Hls.isSupported()) {
+                        hlsInstance = new Hls({ maxBufferLength: 10, enableWorker: true });
+                        hlsInstance.loadSource(video.videoUrl);
+                        hlsInstance.attachMedia(videoEl);
+                        hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => videoEl.play().catch(() => {}));
+                    } else if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
+                        videoEl.src = video.videoUrl;
+                        videoEl.addEventListener('loadedmetadata', () => videoEl.play().catch(() => {}));
+                    }
+                } else {
+                    // MP4 播放
+                    videoEl.src = video.videoUrl;
+                    videoEl.load();
+                    videoEl.play().catch(() => {});
                 }
-            } else {
-                // MP4 格式处理
-                video.src = currentVideo.value.videoUrl;
-                video.load();
-                video.play().catch(() => {});
-            }
+            });
         };
 
-        const playNext = () => { if (currentIndex.value < filteredVideos.value.length - 1) { currentIndex.value++; initAudioVideo(); } };
-        const playPrev = () => { if (currentIndex.value > 0) { currentIndex.value--; initAudioVideo(); } };
-        const handleWheel = (e) => { if (isSwitching) return; isSwitching = true; setTimeout(() => isSwitching = false, 600); if (e.deltaY > 0) playNext(); else playPrev(); };
-        const handleTouchStart = (e) => touchStartY = e.touches[0].clientY;
-        const handleTouchEnd = (e) => { const diff = touchStartY - e.changedTouches[0].clientY; if (Math.abs(diff) > 60) diff > 0 ? playNext() : playPrev(); };
+        const closePlayer = () => {
+            if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
+            if (videoPlayer.value) { videoPlayer.value.src = ""; }
+            isPlayerOpen.value = false;
+        };
 
-        let speedTimeout;
-        const startSpeedUp = () => { speedTimeout = setTimeout(() => { if (videoPlayer.value) { videoPlayer.value.playbackRate = 2.0; isSpeedUp.value = true; } }, 200); };
-        const stopSpeedUp = () => { clearTimeout(speedTimeout); if (videoPlayer.value) { videoPlayer.value.playbackRate = 1.0; isSpeedUp.value = false; } };
-        const togglePlay = () => { if (videoPlayer.value) videoPlayer.value.paused ? videoPlayer.value.play() : videoPlayer.value.pause(); };
-        const closePlayer = () => { if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; } isPlayerOpen.value = false; };
-        const handleVideoEnded = () => { if (!settings.value.loop) playNext(); };
-        const updateProgress = () => { if (videoPlayer.value) { currentTime.value = videoPlayer.value.currentTime; duration.value = videoPlayer.value.duration || 0; } };
-        const seekVideo = () => { if (videoPlayer.value) videoPlayer.value.currentTime = currentTime.value; };
-        const toggleFavorite = (id) => { const idx = favorites.value.indexOf(id); idx > -1 ? favorites.value.splice(idx, 1) : favorites.value.push(id); localStorage.setItem('sb_favorites', JSON.stringify(favorites.value)); };
-        const shareVideo = () => { navigator.clipboard.writeText(currentVideo.value.videoUrl); alert('流媒体原始切片地址已复制！'); };
-        const downloadVideo = () => window.open(currentVideo.value.videoUrl, '_blank');
-        const formatTime = (secs) => { if (isNaN(secs)) return '00:00'; const m = Math.floor(secs / 60).toString().padStart(2, '0'); const s = Math.floor(secs % 60).toString().padStart(2, '0'); return `${m}:${s}`; };
+        const handleImgError = (e) => { e.target.src = 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=400'; };
 
         onMounted(() => fetchVideos());
 
-        return {
-            sites, currentSiteKey, videos, filteredVideos, currentVideo, currentIndex, isPlayerOpen, isSpeedUp, settings, history, favorites, currentTime, duration, videoPlayer, isLoading, isManageModalOpen, newSite,
-            addNewSite, deleteSite, fetchVideos, openImmersivePlayer, closePlayer, playNext, playPrev, handleWheel, handleTouchStart, handleTouchEnd, startSpeedUp, stopSpeedUp, togglePlay, handleVideoEnded, updateProgress, seekVideo, toggleFavorite, shareVideo, downloadVideo, formatTime, handleImgError
-        };
+        return { sites, currentSiteKey, videos, isLoading, isPlayerOpen, activeVideo, videoPlayer, fetchVideos, playVideo, closePlayer, handleImgError };
     }
 }).mount('#app');
 </script>
-<style>[v-cloak]{display:none;}</style>
 </body>
 </html>
