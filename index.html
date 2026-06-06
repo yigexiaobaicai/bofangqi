@@ -248,11 +248,15 @@
                 const videoPlayer = ref(null);
                 let hlsInstance = null;
 
-                // 强制将不规范的 API 地址修正为 JSON 列表输出模式
+                // 核心跨域代理逻辑：使用公用的 cors-anywhere 或 allorigins 镜像进行中转
+                const getProxyUrl = (targetUrl) => {
+                    // 使用 hexos 公共跨域代理中转，自动规避浏览器的跨域拦截
+                    return `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+                };
+
                 const cleanApiUrl = (url) => {
                     let base = url.split('?')[0];
                     if (!base.endsWith('/')) {
-                        // 如果最后不是斜杠且不是.php，补齐斜杠
                         if(!base.endsWith('.php') && !base.endsWith('.html')) base += '/';
                     }
                     return `${base}?ac=list`;
@@ -269,10 +273,10 @@
                     const site = sites.value[currentSiteIndex.value];
                     try {
                         const targetUrl = cleanApiUrl(site.api);
-                        const res = await fetch(targetUrl);
+                        // 通过代理请求
+                        const res = await fetch(getProxyUrl(targetUrl));
                         const data = await res.json();
                         
-                        // 1. 载入左下分类
                         if (data.class) {
                             categories.value = [{ id: 'all', name: '最新影片🔥' }, ...data.class];
                         } else {
@@ -280,7 +284,6 @@
                         }
                         currentCatId.value = 'all';
 
-                        // 2. 载入右侧最新影片
                         if (data.list) {
                             videos.value = data.list.map(item => ({
                                 id: item.vod_id,
@@ -319,7 +322,7 @@
                         if (cat.id !== 'all') {
                             targetUrl += `&t=${cat.id}`;
                         }
-                        const res = await fetch(targetUrl);
+                        const res = await fetch(getProxyUrl(targetUrl));
                         const data = await res.json();
                         if (data.list) {
                             videos.value = data.list.map(item => ({
@@ -345,7 +348,7 @@
                     const site = sites.value[currentSiteIndex.value];
                     try {
                         const targetUrl = `${site.api.split('?')[0]}?ac=list&wd=${encodeURIComponent(searchQuery.value)}`;
-                        const res = await fetch(targetUrl);
+                        const res = await fetch(getProxyUrl(targetUrl));
                         const data = await res.json();
                         if (data.list) {
                             videos.value = data.list.map(item => ({
@@ -369,7 +372,7 @@
                     const site = sites.value[currentSiteIndex.value];
                     try {
                         const detailUrl = cleanDetailUrl(site.api, vid.id);
-                        const res = await fetch(detailUrl);
+                        const res = await fetch(getProxyUrl(detailUrl));
                         const data = await res.json();
                         
                         if (data.list && data.list.length > 0) {
@@ -379,11 +382,9 @@
                                 content: detail.vod_content,
                             };
                             
-                            // 解析剧集链接（采集站通常用 $$$ 分割不同路线，用 # 分割集数）
                             let playUrlStr = detail.vod_play_url || '';
                             let parsedEpisodes = [];
                             
-                            // 优先取含有 m3u8 的播放源组
                             let groups = playUrlStr.split('$$$');
                             let bestGroup = groups[0] || '';
                             for (let g of groups) {
@@ -404,17 +405,15 @@
                             }
                             episodes.value = parsedEpisodes;
 
-                            // 默认播放第一集
                             if (parsedEpisodes.length > 0) {
                                 playUrl(parsedEpisodes[0].url);
                             }
                         }
                     } catch (err) {
-                        alert("获取影片详情失败或跨域受限");
+                        alert("获取影片详情失败");
                     }
                 };
 
-                // 执行播放流媒体 HLS (.m3u8) 或 MP4
                 const playUrl = (url) => {
                     if (!url) return;
                     currentPlayUrl.value = url;
@@ -431,7 +430,7 @@
                         if (url.includes('.m3u8')) {
                             if (Hls.isSupported()) {
                                 hlsInstance = new Hls({
-                                    maxMaxBufferLength: 30 // 防卡顿缓冲优化
+                                    maxMaxBufferLength: 30
                                 });
                                 hlsInstance.loadSource(url);
                                 hlsInstance.attachMedia(video);
@@ -439,7 +438,6 @@
                                 video.src = url;
                             }
                         } else {
-                            // 普通 MP4 格式直接播放
                             video.src = url;
                         }
                     });
