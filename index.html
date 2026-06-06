@@ -3,18 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StreamBlack - 终极采集站高级黑播放器</title>
+    <title>StreamBlack - 全功能采集站聚合播放器</title>
     <meta name="referrer" content="no-referrer">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        zinc: { 950: '#09090b', 900: '#141416', 800: '#202024' }
-                    }
-                }
-            }
+            theme: { extend: { colors: { zinc: { 950: '#09090b', 900: '#141416', 800: '#202024' } } } }
         }
     </script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -27,34 +21,39 @@
     <header class="sticky top-0 z-40 bg-[#09090b]/95 backdrop-blur-md border-b border-zinc-800 px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
         <div class="flex items-center space-x-4 w-full sm:w-auto">
             <span class="text-xl font-black tracking-wider text-white">STREAM<span class="text-red-500">BLACK</span></span>
-            <select v-model="currentSiteKey" @change="fetchVideos" class="bg-[#141416] border border-zinc-800 text-xs text-zinc-200 px-3 py-2 rounded-xl focus:outline-none focus:border-red-500 max-w-[200px] sm:max-w-[300px] truncate">
+            <select v-model="currentSiteKey" @change="fetchVideos" class="bg-[#141416] border border-zinc-800 text-xs text-zinc-200 px-3 py-2 rounded-xl focus:outline-none focus:border-red-500 max-w-[250px] truncate cursor-pointer">
                 <option v-for="site in sites" :key="site.key" :value="site.key">{{ site.name }}</option>
             </select>
         </div>
-        <div class="text-xs text-zinc-500">当前线路共加载 {{ videos.length }} 个资源</div>
+        <div class="text-xs text-zinc-400 bg-zinc-900/50 px-3 py-1.5 rounded-lg border border-zinc-800">
+            当前源成功穿透解析出 <span class="text-green-400 font-bold font-mono">{{ videos.length }}</span> 个影视资源
+        </div>
     </header>
 
     <div v-if="isLoading" class="flex-1 flex flex-col items-center justify-center space-y-3 py-32">
         <div class="w-8 h-8 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
-        <p class="text-xs text-zinc-500 tracking-wider">正在动态穿透并提取采集站视频流...</p>
+        <p class="text-xs text-zinc-500 tracking-wider">正在通过公共代理穿透采集站数据，请稍候...</p>
     </div>
 
     <main v-else class="flex-1 p-6 max-w-7xl mx-auto w-full">
         <div v-if="videos.length === 0" class="text-center text-zinc-500 py-32 text-sm">
-            ⚠️ 当前采集接口受防火墙拦截或暂无数据，请在上方更换其他线路尝试。
+            <p class="mb-2 text-zinc-400 font-medium">⚠️ 当前采集源未返回数据，或代理通道临时拥堵。</p>
+            <p class="text-xs text-zinc-600">请在左上角切换其他采集线路，或者尝试强制刷新：</p>
+            <button @click="fetchVideos" class="mt-4 bg-zinc-800 text-zinc-300 px-4 py-2 rounded-lg text-xs hover:bg-zinc-700 transition">重新拉取</button>
         </div>
+        
         <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-            <div v-for="(video, index) in videos" :key="video.id" 
+            <div v-for="video in videos" :key="video.id" 
                  @click="playVideo(video)"
-                 class="group relative bg-[#141416] rounded-xl overflow-hidden cursor-pointer border border-zinc-800 hover:border-zinc-700 transition-all duration-300 shadow-lg">
+                 class="group relative bg-[#141416] rounded-xl overflow-hidden cursor-pointer border border-zinc-800 hover:border-zinc-600 transition-all duration-300 shadow-lg flex flex-col">
                 <div class="aspect-[3/4] w-full bg-zinc-900 relative overflow-hidden">
                     <img :src="video.cover" referrerpolicy="no-referrer" class="w-full h-full object-cover transition duration-300 group-hover:scale-105" @error="handleImgError">
-                    <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
-                        <span class="text-white text-2xl">▶️</span>
+                    <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition duration-300">
+                        <div class="bg-red-500 text-white w-10 h-10 rounded-full flex items-center justify-center pl-1 shadow-md transform translate-y-2 group-hover:translate-y-0 transition duration-300">▶</div>
                     </div>
                 </div>
-                <div class="p-3 bg-[#141416]">
-                    <h3 class="text-xs font-medium text-zinc-300 group-hover:text-white line-clamp-2 leading-tight h-8">{{ video.title }}</h3>
+                <div class="p-3 bg-[#141416] flex-1 flex flex-col justify-center">
+                    <h3 class="text-xs font-medium text-zinc-300 group-hover:text-white line-clamp-2 leading-tight min-h-[2rem]">{{ video.title }}</h3>
                 </div>
             </div>
         </div>
@@ -64,13 +63,13 @@
         <div class="bg-[#141416] border border-zinc-800 rounded-2xl w-full max-w-4xl overflow-hidden shadow-2xl flex flex-col">
             <div class="p-4 bg-[#09090b] border-b border-zinc-800 flex justify-between items-center">
                 <h3 class="font-bold text-white text-sm truncate pr-4">{{ activeVideo.title }}</h3>
-                <button @click="closePlayer" class="text-zinc-400 hover:text-white text-xs bg-zinc-900 px-3 py-1.5 rounded-lg border border-zinc-800">✕ 关闭</button>
+                <button @click="closePlayer" class="text-zinc-400 hover:text-white text-xs bg-zinc-900 px-3 py-1.5 rounded-lg border border-zinc-800 transition">✕ 关闭播放</button>
             </div>
             <div class="relative aspect-video bg-black w-full">
                 <video ref="videoPlayer" class="w-full h-full" controls autoplay playsinline></video>
             </div>
             <div class="p-4 bg-[#09090b] text-[10px] text-zinc-500 font-mono truncate border-t border-zinc-800">
-                播放源: {{ activeVideo.videoUrl }}
+                当前播放源: {{ activeVideo.videoUrl }}
             </div>
         </div>
     </div>
@@ -79,190 +78,140 @@
 <script>
 const { createApp, ref, onMounted } = Vue;
 
-// 完美内置你提供的 77 条采集站配置
-const embeddedSites = [
-    {"key": "site_1", "name": "01_格调资源(茅台)", "api": "https://caiji.maotaizy.cc/api.php/provide/vod/at/json/"},
-    {"key": "site_2", "name": "02_如意资源网", "api": "https://cj.rycjapi.com/api.php/provide/vod/at/xml/"},
-    {"key": "site_3", "name": "03_黑料资源网", "api": "https://www.heiliaozyapi.com/api.php/provide/vod/"},
-    {"key": "site_4", "name": "04_黑料资源网2", "api": "https://heiliaozyapi.com/api.php/provide/vod/at/xml"},
-    {"key": "site_5", "name": "05_红牛云播", "api": "https://www.hongniuzy2.com/api.php/provide/vod/at/xml/"},
-    {"key": "site_6", "name": "06_光速资源站", "api": "https://api.guangsuapi.com/api.php/provide/vod/at/xml/"},
-    {"key": "site_7", "name": "07_金鹰资源网", "api": "https://jyzyapi.com/provide/vod/at/xml/"},
-    {"key": "site_8", "name": "08_新浪资源", "api": "https://api.xinlangapi.com/xinlangapi.php/provide/vod/at/xml/"},
-    {"key": "site_9", "name": "09_速播资源", "api": "https://subocj.com/api.php/provide/vod"},
-    {"key": "site_10", "name": "10_豪华资源网", "api": "https://hhzyapi.com/api.php/provide/vod"},
-    {"key": "site_11", "name": "11_虎牙资源", "api": "https://www.huyaapi.com/api.php/provide/vod/at/json"},
-    {"key": "site_12", "name": "12_爱奇艺资源站", "api": "https://www.iqiyizyapi.com/api.php/provide/vod/at/xml/"},
-    {"key": "site_13", "name": "13_豆瓣资源", "api": "https://caiji.dbzy5.com/api.php/provide/vod/at/json/"},
-    {"key": "site_14", "name": "14_魔都动漫", "api": "https://www.mdzyapi.com/api.php/provide/vod/at/xml/"},
-    {"key": "site_15", "name": "15_ikun资源网", "api": "https://ikunzyapi.com/api.php/provide/vod"},
-    {"key": "site_16", "name": "16_ikun资源网2", "api": "https://ikunzyapi.com/api.php/provide/vod/at/xml"},
-    {"key": "site_17", "name": "17_无水印资源", "api": "https://api.wsyzy.net/api.php/provide/vod/from/wsym3u8/at/xml/"},
-    {"key": "site_18", "name": "18_云解析资源", "api": "https://api.yparse.com/api/json"},
-    {"key": "site_19", "name": "19_猫眼资源", "api": "https://api.maoyanapi.top/api.php/seaxml/vod/at/xml"},
-    {"key": "site_20", "name": "20_猫眼资源2", "api": "https://api.maoyanapi.top/api.php/provide/vod"},
-    {"key": "site_21", "name": "21_旺旺资源网", "api": "https://api.wwzy.tv/api.php/provide/vod/at/xml/?ac=list"},
-    {"key": "site_22", "name": "22_155资源站", "api": "https://155api.com/api.php/Seacms/vod/at/xml/"},
-    {"key": "site_23", "name": "23_优质资源库", "api": "https://api.yzzy-api.com/inc/apijson.php"},
-    {"key": "site_24", "name": "24_OK资源采集", "api": "http://api.okzyw.net/api.php/provide/vod/from/okm3u8/at/xml"},
-    {"key": "site_25", "name": "25_U酷资源网", "api": "https://api.ukuapi88.com/api.php/provide/vod/?ac=list"},
-    {"key": "site_26", "name": "26_量子资源网", "api": "https://cj.lziapi.com/api.php/provide/vod/at/xml/"},
-    {"key": "site_27", "name": "27_快车资源", "api": "https://caiji.kczyapi.com/api.php/provide/vod/at/xml/"},
-    {"key": "site_28", "name": "28_最大资源网", "api": "https://api.zuidapi.com/api.php/provide/vod/from/http/at/xml/"},
-    {"key": "site_29", "name": "29_天涯影视资源网", "api": "https://tyyszyapi.com/api.php/provide/vod/at/xml/?ac=list"},
-    {"key": "site_30", "name": "30_电影天堂", "api": "http://caiji.dyttzyapi.com/api.php/provide/vod/at/xml/"},
-    {"key": "site_31", "name": "31_电影天堂2", "api": "http://caiji.dyttzyapi.com/api.php/provide/vod/?ac=list"},
-    {"key": "site_32", "name": "32_百度资源", "api": "https://api.apibdzy.com/api.php/provide/vod/at/xml/"},
-    {"key": "site_33", "name": "33_鸭鸭资源", "api": "https://cj.yayazy.net/api.php/provide/vod/from/yym3u8/at/xml"},
-    {"key": "site_34", "name": "34_牛牛资源网", "api": "https://api.niuniuzy.me/api.php/provide/vod/from/nnm3u8/at/xml"},
-    {"key": "site_35", "name": "35_360资源站", "api": "https://360zyzz.com/api.php/provide/vod"},
-    {"key": "site_36", "name": "36_360资源站2", "api": "https://360zyzz.com/api.php/seaxml/vod/at/xml"},
-    {"key": "site_37", "name": "37_爱坤联盟", "api": "https://www.jkunzyapi.com/api.php/provide/vod/?ac=list"},
-    {"key": "site_38", "name": "38_淘片资源", "api": "https://taopianapi.com/cjapi/mc10/vod/xml.html"},
-    {"key": "site_39", "name": "39_卧龙影视资源", "api": "https://collect.wolongzy.cc/api.php/provide/vod/at/xml/?ac=list"},
-    {"key": "site_40", "name": "40_极速资源网", "api": "https://jszyapi.com/api.php/provide/vod/?ac=videolist"},
-    {"key": "site_41", "name": "41_暴风资源网", "api": "https://bfzyapi.com/api.php/provide/vod/at/xml"},
-    {"key": "site_42", "name": "42_大地资源", "api": "https://dadiapi.com/api.php/provide/vod/"},
-    {"key": "site_43", "name": "43_非凡资源", "api": "http://api.ffzyapi.com/api.php/provide/vod/?ac=list"},
-    {"key": "site_44", "name": "44_森林资源网", "api": "https://beiyong.slapibf.com/api.php/provide/vod/at/xml/"},
-    {"key": "site_45", "name": "45_X细胞", "api": "https://www.xxibaozyw.com/api.php/provide/vod/at/xml/"},
-    {"key": "site_46", "name": "46_奶香香资源站", "api": "https://naixxzy.com/api.php/provide/vod/at/xml/"},
-    {"key": "site_47", "name": "47_奥斯卡资源", "api": "https://asoikazy.com/api.php/provide/vod/at/xml"},
-    {"key": "site_48", "name": "48_玉兔", "api": "https://apiyutu.com/api.php/provide/vod/at/xml/"},
-    {"key": "site_49", "name": "49_番茄资源", "api": "https://fqzy.me//api.php/provide/vod/at/xml"},
-    {"key": "site_50", "name": "50_光速资源", "api": "https://api.guangsuapi.com/api.php/provide/vod/at/xml"},
-    {"key": "site_51", "name": "51_精品x", "api": "https://www.jingpinx.com/api.php/provide/vod/at/xml"},
-    {"key": "site_52", "name": "52_量子资源", "api": "https://cj.lziapi.com/api.php/provide/vod/from/liangzi/at/xml"},
-    {"key": "site_53", "name": "53_美少女", "api": "https://www.msnii.com/api/xml.php"},
-    {"key": "site_54", "name": "54_番号资源", "api": "http://fhapi9.com/api.php/provide/vod/at/xml/"},
-    {"key": "site_55", "name": "55_998资源", "api": "https://api.998zy.com/api.php/provide/vod/at/xml"},
-    {"key": "site_56", "name": "56_ckzy", "api": "https://ckzy.me/api.php/provide/vod/at/xml"},
-    {"key": "site_57", "name": "57_滴滴", "api": "https://api.ddapi.cc/api.php/provide/vod/at/xml"},
-    {"key": "site_58", "name": "58_豆豆", "api": "https://api.douapi.cc/api.php/provide/vod/at/xml"},
-    {"key": "site_59", "name": "59_丝袜资源", "api": "https://siwazyw.tv/api.php/provide/vod/at/xml/"},
-    {"key": "site_60", "name": "60_香奶儿", "api": "https://www.gdlsp.com/api/xml.php"},
-    {"key": "site_61", "name": "61_91资源", "api": "https://91jpzyw.com/api.php/provide/vod/at/json"},
-    {"key": "site_62", "name": "62_魔爪资源", "api": "https://mozhuazy.com/api.php/provide/vod/?ac=list"},
-    {"key": "site_63", "name": "63_色猫资源", "api": "https://caiji.semaozy.net/inc/apijson_vod.php"},
-    {"key": "site_64", "name": "64_杏吧", "api": "https://json.xingba222.com/api.php/provide/vod/"},
-    {"key": "site_65", "name": "65_大奶子", "api": "https://apidanaizi.com/api.php/provide/vod/?ac=list"},
-    {"key": "site_66", "name": "66_988资源", "api": "https://www.saobi2.com/api.php/provide/vod/?ac=detail"},
-    {"key": "site_67", "name": "67_香蕉资源", "api": "https://www.xiangjiaozyw.com/api.php/provide/vod/?ac=list"},
-    {"key": "site_68", "name": "68_花花资源", "api": "https://hhzyapi.com/api.php/provide/vod/at/json"},
-    {"key": "site_69", "name": "69_樱桃资源", "api": "https://api.ytyszy.com/api.php/provide/vod/?ac=list"},
-    {"key": "site_70", "name": "70_盈盈资源", "api": "https://yyzyz.com/api.php/provide/vod/?ac=list"},
-    {"key": "site_71", "name": "71_优优资源", "api": "https://api.yyzys.com/api.php/provide/vod/?ac=list"},
-    {"key": "site_72", "name": "72_南瓜资源", "api": "https://www.nmzyz.com/api.php/provide/vod/?ac=list"},
-    {"key": "site_73", "name": "73_鲨鱼资源", "api": "https://shayuapi.com/api.php/provide/vod/at/json"},
-    {"key": "site_74", "name": "74_无尽资源", "api": "https://api.wujinapi.com/api.php/provide/vod/at/json"},
-    {"key": "site_75", "name": "75_闪电资源", "api": "https://sdzyapi.com/api.php/provide/vod/at/json"},
-    {"key": "site_76", "name": "76_飞驰资源", "api": "https://api.maoyanapi.top/api.php/provide/vod/at/json"},
-    {"key": "site_77", "name": "77_乐播资源", "api": "https://lbapi9.com/api.php/provide/vod/at/json"}
-];
-
 createApp({
     setup() {
-        const sites = ref(embeddedSites);
-        const currentSiteKey = ref(sites.value[0].key);
+        const sites = ref([]);
+        const currentSiteKey = ref('');
         const videos = ref([]);
         const isLoading = ref(false);
         const isPlayerOpen = ref(false);
         const activeVideo = ref({});
-        
-        let hlsInstance = null;
         const videoPlayer = ref(null);
+        let hlsInstance = null;
 
-        // 核心：请求并解析采集源
+        // 2026年高可用、支持高并发的公共穿透跨域代理池
+        const proxies = [
+            "https://api.allorigins.win/get?url=",    // 核心代理（返回封装过的 JSON）
+            "https://corsproxy.io/?",                 // 备用穿透 1
+            "https://thingproxy.freeboard.io/fetch/"  // 备用穿透 2
+        ];
+
+        // 1. 页面初始化，自动加载你同仓库下的 JSON 规则文件
+        const loadConfig = async () => {
+            isLoading.value = true;
+            try {
+                // 自动抓取同仓库根目录下的配置文件
+                const res = await fetch('./66条采集废完再说.json');
+                const config = await res.json();
+                if (config && config.sites) {
+                    sites.value = config.sites;
+                    currentSiteKey.value = config.sites[0].key;
+                    // 加载完配置后，开始获取第一个站点的视频数据
+                    await fetchVideos();
+                }
+            } catch (e) {
+                console.error("加载 66条采集废完再说.json 失败，请检查文件名或格式:", e);
+                isLoading.value = false;
+            }
+        };
+
+        // 2. 穿透拉取采集站数据
         const fetchVideos = async () => {
             const current = sites.value.find(s => s.key === currentSiteKey.value);
             if (!current) return;
+            
             isLoading.value = true;
             videos.value = [];
 
-            // 完美的跨域公共反向代理，解决前端 CORS 拦截
-            const proxy = "https://cors-anywhere.azm.workers.dev/?url=";
             let targetUrl = current.api;
-            
-            // 补全参数，直接请求详细列表
+            // 规范化接口参数，强制采集站返回完整列表
             if (!targetUrl.includes('ac=')) {
                 targetUrl += (targetUrl.includes('?') ? '&' : '?') + 'ac=videolist';
             }
 
+            // 使用主跨域代理封装
+            const proxyUrl = proxies[0] + encodeURIComponent(targetUrl);
+
             try {
-                const res = await fetch(proxy + encodeURIComponent(targetUrl));
-                const text = await res.text();
-                
-                if (text.trim().startsWith('{')) {
-                    parseJson(JSON.parse(text));
+                const res = await fetch(proxyUrl);
+                const jsonResult = await res.json();
+                const rawText = jsonResult.contents; // 解包代理返回的真实内容
+
+                if (rawText.trim().startsWith('{')) {
+                    parseJson(JSON.parse(rawText));
                 } else {
-                    parseXml(text);
+                    parseXml(rawText);
                 }
             } catch (e) {
-                console.error("采集站源响应受阻，已注入通用测试流：", e);
-                injectFallback();
+                console.warn("主代理请求受限，尝试切换备用直接代理...");
+                try {
+                    const fallbackRes = await fetch(proxies[1] + encodeURIComponent(targetUrl));
+                    const fallbackText = await fallbackRes.text();
+                    if (fallbackText.trim().startsWith('{')) {
+                        parseJson(JSON.parse(fallbackText));
+                    } else {
+                        parseXml(fallbackText);
+                    }
+                } catch (err2) {
+                    console.error("所有公用跨域中转通道均被防火墙拦截。");
+                }
             } finally {
                 isLoading.value = false;
             }
         };
 
-        // 处理 JSON 格式接口
+        // 3. 解析采集站 JSON 核心逻辑
         const parseJson = (data) => {
-            const rawList = data.list || [];
-            videos.value = rawList.map(v => {
-                let pUrl = '';
+            const list = data.list || [];
+            videos.value = list.map(v => {
+                let purl = '';
                 if (v.vod_play_url) {
-                    const sections = v.vod_play_url.split('#');
-                    pUrl = sections[0].includes('$') ? sections[0].split('$')[1] : sections[0];
+                    const firstPart = v.vod_play_url.split('#')[0];
+                    purl = firstPart.includes('$') ? firstPart.split('$')[1] : firstPart;
                 }
                 return {
                     id: String(v.vod_id || Math.random()),
                     title: v.vod_name,
                     cover: v.vod_pic || 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=400',
-                    videoUrl: pUrl
+                    videoUrl: purl
                 };
             }).filter(item => item.videoUrl && (item.videoUrl.includes('.m3u8') || item.videoUrl.includes('.mp4')));
         };
 
-        // 处理 XML 格式接口
+        // 4. 解析采集站 XML 核心逻辑
         const parseXml = (xmlText) => {
-            const xml = new DOMParser().parseFromString(xmlText, "text/xml");
+            const parser = new DOMParser();
+            const xml = parser.parseFromString(xmlText, "text/xml");
             const items = xml.getElementsByTagName("video");
             const result = [];
+            
             for (let i = 0; i < items.length; i++) {
                 const el = items[i];
                 const dl = el.getElementsByTagName("dl")[0];
-                let pUrl = '';
+                let purl = '';
                 if (dl) {
                     const dd = dl.getElementsByTagName("dd")[0];
                     if (dd) {
                         const raw = dd.textContent || '';
-                        pUrl = raw.split('#')[0].includes('$') ? raw.split('#')[0].split('$')[1] : raw.split('#')[0];
+                        const firstPart = raw.split('#')[0];
+                        purl = firstPart.includes('$') ? firstPart.split('$')[1] : firstPart;
                     }
                 }
                 result.push({
                     id: el.getElementsByTagName("id")[0]?.textContent || String(Math.random()),
-                    title: el.getElementsByTagName("name")[0]?.textContent || '未名影视',
+                    title: el.getElementsByTagName("name")[0]?.textContent || '未知影片',
                     cover: el.getElementsByTagName("pic")[0]?.textContent || 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=400',
-                    videoUrl: pUrl
+                    videoUrl: purl
                 });
             }
             videos.value = result.filter(item => item.videoUrl && (item.videoUrl.includes('.m3u8') || item.videoUrl.includes('.mp4')));
         };
 
-        // 备用高可用流 (防止某些源突然挂掉页面空白)
-        const injectFallback = () => {
-            videos.value = [
-                { id: 'mock_1', title: '万能测试流：大雄的宇宙开拓史 (HLS)', cover: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=400', videoUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8' },
-                { id: 'mock_2', title: '万能测试流：开源大雄兔 (MP4)', cover: 'https://images.unsplash.com/photo-1578301978693-85fa9c0320b9?w=400', videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4' }
-            ];
-        };
-
-        // 打开弹窗并载入视频流
+        // 5. 视频流内核拉起与点播播放
         const playVideo = (video) => {
             activeVideo.value = video;
             isPlayerOpen.value = true;
             
-            // 等待 DOM 渲染完毕后初始化播放内核
             Vue.nextTick(() => {
                 const videoEl = videoPlayer.value;
                 if (!videoEl || !video.videoUrl) return;
@@ -271,19 +220,18 @@ createApp({
 
                 if (video.videoUrl.includes('.m3u8')) {
                     if (Hls.isSupported()) {
-                        hlsInstance = new Hls({ maxBufferLength: 10, enableWorker: true });
+                        hlsInstance = new Hls({ maxBufferLength: 15, maxMaxBufferLength: 30 });
                         hlsInstance.loadSource(video.videoUrl);
                         hlsInstance.attachMedia(videoEl);
-                        hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => videoEl.play().catch(() => {}));
+                        hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => videoEl.play().catch(()=>{}));
                     } else if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
                         videoEl.src = video.videoUrl;
-                        videoEl.addEventListener('loadedmetadata', () => videoEl.play().catch(() => {}));
+                        videoEl.addEventListener('loadedmetadata', () => videoEl.play().catch(()=>{}));
                     }
                 } else {
-                    // MP4 播放
                     videoEl.src = video.videoUrl;
                     videoEl.load();
-                    videoEl.play().catch(() => {});
+                    videoEl.play().catch(()=>{});
                 }
             });
         };
@@ -296,7 +244,8 @@ createApp({
 
         const handleImgError = (e) => { e.target.src = 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=400'; };
 
-        onMounted(() => fetchVideos());
+        // 页面入口挂载
+        onMounted(() => loadConfig());
 
         return { sites, currentSiteKey, videos, isLoading, isPlayerOpen, activeVideo, videoPlayer, fetchVideos, playVideo, closePlayer, handleImgError };
     }
